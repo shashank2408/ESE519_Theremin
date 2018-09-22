@@ -220,11 +220,10 @@ ISR(TIMER1_COMPA_vect)
 			 * Enable the interrupts for pulse width detection
 			 * upon reaching falling edge of the 5us pulse.
 			 */
-			//TIMSK1 &= (0<<OCIE1A);
+			
 			OCR1A += DelayLo;
 			HiorLo = 0;
 			TIMSK1 |= (1 << ICIE1);		
-
 		}
 		else{
 			OCR1A += DelayHi;
