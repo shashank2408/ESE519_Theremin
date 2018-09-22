@@ -1,8 +1,8 @@
 /*
- * BlinkLED.c
+ * main.c
  *
  * Created: 06/09/2018 6:29:10 PM
- * Author : DELL PC
+ * Author : Ritvik Sadana, Shashank D Prasad
  */
 
 #include <stdio.h>
@@ -10,33 +10,37 @@
 #include "uart.h"
 #include <util/delay.h>
 
-static int risingEdgeTimerVal;
-static int fallingEdgeTimerVal;
-static int pulseWidth;
-static int edgeCount = 0;
-static int random_var = 0;
-unsigned int edgeDetect = 0;
+static int risingEdgeTimerVal;  // Record the time at rising edge.
+static int fallingEdgeTimerVal; // Record the time at falling edge.
+static int pulseWidth;			// pulseWidth = risingEdge - fallingEdge.
+static int edgeCount = 0;		// Keep a count of how many edges are detected 
+								// while calculating pulse width.
+unsigned int edgeDetect = 0;	// For checking number of edges while 
+								// pressing the switch
 int contOrDisc = 1;
 
 /*
  * Set Delay times of the 5us pulse that we send to the sensor.
  */
-unsigned int DelayHi= 10; // high time of the pulses to be created
-unsigned int DelayLo= 38500; // low time of the pulses to be created
+unsigned int DelayHi= 10;		// high time of the pulses to be created (5us).
+unsigned int DelayLo= 38500;	// low time of the pulses to be created.
 
-char HiorLo; // flag to choose
-unsigned int adcVal;
+char HiorLo;					// Flag indicating the status of 5us pulse.
 
-unsigned int pulse_width();
-void discrete_sampling(unsigned int pulsewidth);
-void setupADC(void);
-void adcStartConversion(void);
-void continuos_sampling(unsigned int pulseWidth);
-void configureDACPins(void);
+void setupADC(void);								// Function to setup ADC.
+void adcStartConversion(void);						// Function to start ADC conversion.
+void discrete_sampling(unsigned int pulsewidth);	// Function to enable discrete mode 
+													// of setting value of OCR0A.
+void continuos_sampling(unsigned int pulseWidth);	// Function to enable continuous mode 
+													// of setting value of OCR0A.
+void configureDACPins(void);						// 
 void photoSensorSampling(unsigned int adcInput);
 
 int main(void)
 {
+	// Call uart_init for print functions.
+	uart_init();
+	
 	//
 	// Configuration for LED and Switch.
 	// LED: PORTB-PIN5
@@ -63,40 +67,39 @@ int main(void)
 	//
 	// Timer 0 configuration for buzzer.
 	//
-	TCCR0A |= 0x42; // Set to CTC mode with OCRA toggle.
-	TIMSK0 |= (1 << OCIE0A); 	         // Enable the timer interrupt.
-	TCCR0B |= (1 << CS02); // Pre-scaler of 64.
+	TCCR0A |= 0x42;				// Set to CTC mode with OCRA toggle.
+	TIMSK0 |= (1 << OCIE0A);    // Enable the timer interrupt.
+	TCCR0B |= (1 << CS02);		// Pre-scaler of 64.
 	
 	//
 	// Timer 1 configuration for Sensor output and input.
 	//
 	 TCCR1B |=  (1<< ICES1) | (1 << ICNC1) | (1<<CS11); // Configure for rising edge initially.
-	 
-	 
-    
-	uart_init();
+	
 	//Timer 1 configuration for Sensor interfacing
-	TCCR1A |= 0x40; //Toggle OC1A/OC1B on Compare Match.	
+	TCCR1A |= 0x40;				//Toggle OC1A/OC1B on Compare Match.	
 	
+	OCR1A += DelayLo;			// Start the OC1 operation	
+	HiorLo= 0;					// Next time use DelayLo as delay count of OC0 operation
+	TIMSK1 |=  (1<<OCIE1A); 	// Output compare enable on OC1A.
 	
+    sei();						// Enable global interrupts.
 	
-	OCR1A += DelayLo; // start the second OC1 operation	
-	HiorLo= 0; // next time use DelayLo as delay count of OC0 operation
-	TIMSK1 |=  (1<<OCIE1A); 	//  output compare enable on OC1A.
-    sei();
+	setupADC();					// Setup ADC.
+	adcStartConversion();		// Start ADC conversion.
 	
-	setupADC();
-	adcStartConversion();
-	
-	DDRB |= 0B00011100;
+	DDRB |= 0B00011100;			// Set the DAC pins for volume control to output mode.
 	
     while(1){
 		
+		// Poll if button is being pressed or not.
 		if(contOrDisc){
 			continuos_sampling(pulseWidth);
 		} else{
 			discrete_sampling(pulseWidth);
 		}
+		
+		// Sample ADC values and control the volume using DAC.
 		photoSensorSampling(ADC);
 	}
 }
@@ -131,7 +134,6 @@ void discrete_sampling(unsigned int pulsewidth){
 
 void photoSensorSampling(unsigned int adcInput)
 {
-	printf("\n %u", adcInput);
 	if(adcInput <= 964 && adcInput >= 901)
 	{
 							  // Set
@@ -193,15 +195,14 @@ void photoSensorSampling(unsigned int adcInput)
 
 void setupADC(void){
 
-	ADMUX |= (1 << REFS0); 	/* Setting ADC to use VCC as reference voltage 
-	   					     * Use A0 pin to read input
-	   						 */
-	ADCSRA |= (1 << ADSC) | (1 << ADEN) | (1 << ADPS2) | (1<< ADPS1) ; /* Turn ADC on, 
-														  * Use pre-scaler as 4
-														  * Set auto-trigger. 
-   														  */
+	ADMUX |= (1 << REFS0); 	// Setting ADC to use VCC as reference voltage 
+	   					    //  Use A0 pin to read input
 
-	DIDR0 |= (1<<ADC0D); // Disable digital input buffer
+	ADCSRA |= (1 << ADSC) | (1 << ADEN) | (1 << ADPS2) | (1<< ADPS1) ; // Turn ADC on, 
+																	   //  Use pre-scaler as 4
+																	   //  Set auto-trigger. 
+
+	DIDR0 |= (1<<ADC0D);   // Disable digital input buffer
 
 }
 
@@ -233,26 +234,20 @@ ISR(TIMER1_COMPA_vect)
 		
 }
 
-/* ISR for timer 0 because it was interfering with other ISRs 
- * as it was not getting handled.
- *
+/* 
+ * Empty ISR for timer 0 because it was interfering 
+ * with other ISRs as the flag was not getting cleared.
  */
-ISR(TIMER0_COMPA_vect)
-{
+ISR(TIMER0_COMPA_vect){}
 
-}
-
-
+/*
+ * ISR to handle button press and toggle between continuous and discrete mode
+ */
 ISR(INT1_vect){
 	edgeDetect++;
 
-	if(edgeDetect%2 == 0){
-			contOrDisc = 1;
-		} 
-	else{
-			contOrDisc = 0;
-	}
-
+	if(edgeDetect%2 == 0){ contOrDisc = 1; } 
+	else{                  contOrDisc = 0; }
 }
 
 
@@ -269,8 +264,6 @@ ISR(TIMER1_CAPT_vect)
 		fallingEdgeTimerVal = ICR1;
 		pulseWidth = (fallingEdgeTimerVal - risingEdgeTimerVal);
 		
-		//printf("\n %u", pulseWidth);
-		
 		unsigned int offset = ((pulseWidth - 300)/40) + 119;
 		OCR0A = offset;
 		edgeCount = 0;
@@ -278,7 +271,7 @@ ISR(TIMER1_CAPT_vect)
 		// Disable the interrupt for pulse calculation.
 		TCCR1B |= (1 << ICES1);
 		TIMSK1 &= 0xDF;
-		//TIMSK1 |= (1 << OCIE1A);
+
 	}
 	else
 	{
