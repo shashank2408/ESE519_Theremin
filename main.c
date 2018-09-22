@@ -33,8 +33,7 @@ void discrete_sampling(unsigned int pulsewidth);	// Function to enable discrete 
 													// of setting value of OCR0A.
 void continuos_sampling(unsigned int pulseWidth);	// Function to enable continuous mode 
 													// of setting value of OCR0A.
-void configureDACPins(void);						// 
-void photoSensorSampling(unsigned int adcInput);
+void photoSensorSampling(unsigned int adcInput);	// Sample ADC values and control the volume using DAC.
 
 int main(void)
 {
