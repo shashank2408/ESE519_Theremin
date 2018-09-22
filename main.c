@@ -60,15 +60,14 @@ int main(void)
 	PORTD |= (1 << PORTD3);
 
 	
-	//EICRA |= (0<<ISC00); //Set for any edge
-	//EIMSK |= (1<<INT1);
+	EIMSK |= (1<<INT1); //Enable external interupt for INT1 port 
 	
 	//
 	// Timer 0 configuration for buzzer.
 	//
 	TCCR0A |= 0x42;				// Set to CTC mode with OCRA toggle.
 	TIMSK0 |= (1 << OCIE0A);    // Enable the timer interrupt.
-	TCCR0B |= (1 << CS02);		// Pre-scaler of 64.
+	TCCR0B |= (1 << CS02);		// Pre-scaler of 256.
 	
 	//
 	// Timer 1 configuration for Sensor output and input.
@@ -104,7 +103,8 @@ int main(void)
 }
 
 void continuos_sampling(unsigned int pulseWidth){
-	int offset = (((pulseWidth-300)*15)/4700) + 14;
+	int offset = (((pulseWidth-300)*15)/4700) + 14; /* Range of vaules 300-5000 = 4700
+							  Range of values of OCR0A 15-30 = 15 */
 	OCR0A = offset;
 }
 
@@ -119,11 +119,11 @@ void discrete_sampling(unsigned int pulsewidth){
 		} else if(pulseWidth >= 2061  && pulseWidth <2643){
 		OCR0A = 20;
 		}  else if(pulseWidth >= 2648  && pulseWidth <3230){
-		OCR0A = 23;
+		OCR0A = 22;
 		}  else if(pulseWidth >= 3235  && pulseWidth <3818){
-		OCR0A = 24;
+		OCR0A = 23;
 		}  else if(pulseWidth >= 3822  && pulseWidth <4405){
-		OCR0A = 27;
+		OCR0A = 26;
 		} else if(pulseWidth >= 4409){
 		OCR0A = 30;
 		} else {
